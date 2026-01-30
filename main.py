@@ -96,11 +96,9 @@ def main():
     files = scrape_articles()
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
-        raise RuntimeError("OPENAI_API_KEY not set")
-
+        print("OPENAI_API_KEY not set — running in scrape-only mode.")
+        return
     client = OpenAI(api_key=api_key)
-
-
     print(f"Loaded {len(files)} markdown files")
 
     # Upload files
