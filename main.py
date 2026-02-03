@@ -18,6 +18,7 @@ def save_hashes(hashes):
         json.dump(hashes, f, indent=2)
 def hash_article(markdown: str) -> str:
     return hashlib.sha256(markdown.encode("utf-8")).hexdigest()
+
 API_URL = "https://support.optisigns.com/api/v2/help_center/articles.json"
 FOLDER_NAME = "scraping"
 N_ARTICLES = 40
@@ -83,7 +84,27 @@ Article URL: {url}
     save_hashes(new_hashes)
     print(f"added={added} updated={updated} skipped={skipped}")
     return files_to_upload
-FOLDER_NAME = "scraping"
+
+VECTOR_STORE_NAME = "optisigns-docs"
+def get_or_create_vector_store(client, name):
+    stores = client.beta.vector_stores.list()
+
+    for store in stores.data:
+        if store.name == name:
+            print(f"Using existing vector store: {store.id}")
+            return store.id
+
+    store = client.beta.vector_stores.create(name=name)
+    print(f"Created vector store: {store.id}")
+    return store.id
+
+def resolve_vector_store(client):
+    env_id = os.getenv("VECTOR_STORE_ID")
+    if env_id:
+        print(f"Using VECTOR_STORE_ID from env: {env_id}")
+        return env_id
+
+    return get_or_create_vector_store(client, VECTOR_STORE_NAME)
 
 SYSTEM_PROMPT = """You are OptiBot, the customer-support bot for OptiSigns.com.
 • Tone: helpful, factual, concise.
@@ -115,17 +136,7 @@ def main():
     print(f"Uploaded {len(files)} files")
 
     # Create vector store
-    VECTOR_STORE_ID = os.getenv("VECTOR_STORE_ID")
-
-    if VECTOR_STORE_ID:
-        vector_store_id = VECTOR_STORE_ID
-        print(f"Using existing vector store: {vector_store_id}")
-    else:
-        vector_store = client.beta.vector_stores.create(
-            name="optisigns-docs"
-        )
-        vector_store_id = vector_store.id
-        print(f"Created vector store: {vector_store_id}")
+    vector_store_id = resolve_vector_store(client)
 
     # Attach files to vector store
     if uploaded_file_ids:
